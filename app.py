@@ -172,7 +172,7 @@ with st.expander("Sources suivies", expanded=False):
         st.write(f"• {u}")
 
 if st.button("🔄 Rafraîchir"):
-    st.experimental_rerun()
+    st.rerun()
 
 news = fetch_news_for_day(selected_day)
 

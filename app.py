@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, date
 import re
 import csv
 from io import StringIO
-import requests
 
 # --------- Paramètres ---------
 APP_TITLE = "News Éco Maroc"
@@ -22,7 +21,11 @@ RSS_FEEDS = [
     "https://fr.le360.ma/economie/feed",
     "https://ar.le360.ma/economie/feed",
     "https://www.hespress.com/economie/feed",
-    "https://lematin.ma/rss"
+    "https://lematin.ma/rss",
+    # Flux RSS personnalisés via rss.app
+    "https://rss.app/feeds/yqeETBq1wyDFWBVN.xml",
+    "https://rss.app/feeds/UOwbLQLf4U6b4oXH.xml",
+    "https://rss.app/feeds/6AZTWsoIWodqhrfH.xml"
 ]
 
 ECON_KEYWORDS = [
@@ -31,8 +34,6 @@ ECON_KEYWORDS = [
     "inflation", "croissance", "PIB", "export", "import", "commerce",
     "industrie", "énergie", "oil", "gaz", "mines", "telecom", "tourisme",
 ]
-
-HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 # --------- Fonctions utilitaires ---------
 def clean_html(text: str) -> str:
@@ -85,61 +86,7 @@ def same_day(dt: datetime, target_day: date) -> bool:
     local = dt.astimezone(TIMEZONE)
     return local.date() == target_day
 
-# --------- Scrapers HTML ---------
-def fetch_boursenews_html(target_day: date):
-    items = []
-    try:
-        url = "https://www.boursenews.ma/"
-        r = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(r.text, "html.parser")
-        articles = soup.select(".article-item")
-        for art in articles:
-            title_tag = art.find("h3")
-            if not title_tag:
-                continue
-            title = clean_html(title_tag.text)
-            link = title_tag.find("a").get("href", "")
-            desc_tag = art.find("p")
-            summary = clean_html(desc_tag.text) if desc_tag else ""
-            items.append({
-                "source": "Boursenews",
-                "title": title,
-                "summary": summary,
-                "time": "--:--",
-                "link": link
-            })
-    except Exception:
-        pass
-    return items
-
-def fetch_leboursier_html(target_day: date):
-    items = []
-    try:
-        url = "https://leboursier.ma/"
-        r = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(r.text, "html.parser")
-        articles = soup.select("article")
-        for art in articles:
-            title_tag = art.find("h2") or art.find("h3")
-            if not title_tag:
-                continue
-            title = clean_html(title_tag.text)
-            link_tag = title_tag.find("a")
-            link = link_tag.get("href", "") if link_tag else ""
-            summary_tag = art.find("p")
-            summary = clean_html(summary_tag.text) if summary_tag else ""
-            items.append({
-                "source": "LeBoursier",
-                "title": title,
-                "summary": summary,
-                "time": "--:--",
-                "link": link
-            })
-    except Exception:
-        pass
-    return items
-
-# --------- Récupération combinée ---------
+# --------- Récupération des flux ---------
 def fetch_news_for_day(target_day: date):
     items = []
     for url in RSS_FEEDS:
@@ -166,8 +113,6 @@ def fetch_news_for_day(target_day: date):
                 "time": dt.strftime("%H:%M"),
                 "link": link
             })
-    items.extend(fetch_boursenews_html(target_day))
-    items.extend(fetch_leboursier_html(target_day))
     seen = set()
     unique = []
     for it in items:
